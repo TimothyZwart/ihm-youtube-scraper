@@ -58,50 +58,57 @@ const DOWNLOADS = "./downloads";
 const FORMAT = "xml";
 
 const getFiles = async (linkOfVideo) => {
- let info = await ytdl.getInfo(linkOfVideo);
+ try {
+  let info = await ytdl.getInfo(linkOfVideo);
 
- const title = info.videoDetails.title;
- const folderName = title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
- const folderPath = `${DOWNLOADS}/${folderName}`;
- if (!fs.existsSync(folderPath)) {
-  fs.mkdirSync(folderPath);
- }
+  const title = info.videoDetails.title
+   .replace(/[^a-z0-9]/gi, "_")
+   .toLowerCase();
 
- if (
-  info.player_response &&
-  info.player_response.captions &&
-  info.player_response.captions.playerCaptionsTracklistRenderer
- ) {
-  const tracks =
-   info.player_response.captions.playerCaptionsTracklistRenderer.captionTracks;
-  const track = tracks.find((t) => t.languageCode == lang);
-  if (track) {
-   const xmlpageStream = await getPage(track.baseUrl, FORMAT);
-   const xml = await streamToString(xmlpageStream);
-   const captions = await getCaptions(xml);
-   const textList = [];
-
-   captions.forEach((cap) => {
-    textList.push(cap.text);
-   });
-
-   const combinedCaptions = textList.join(". ");
-   fs.appendFileSync(
-    `${DOWNLOADS}/${folderName}/${title}.txt`,
-    combinedCaptions
-   );
+  const folderName = title;
+  const folderPath = `${DOWNLOADS}/${folderName}`;
+  if (!fs.existsSync(folderPath)) {
+   fs.mkdirSync(folderPath);
   }
+
+  if (
+   info.player_response &&
+   info.player_response.captions &&
+   info.player_response.captions.playerCaptionsTracklistRenderer
+  ) {
+   const tracks =
+    info.player_response.captions.playerCaptionsTracklistRenderer.captionTracks;
+   const track = tracks.find((t) => t.languageCode == lang);
+   if (track) {
+    const xmlpageStream = await getPage(track.baseUrl, FORMAT);
+    const xml = await streamToString(xmlpageStream);
+    const captions = await getCaptions(xml);
+    const textList = [];
+
+    captions.forEach((cap) => {
+     textList.push(cap.text);
+    });
+
+    const combinedCaptions = textList.join(". ");
+    fs.appendFileSync(
+     `${DOWNLOADS}/${folderName}/${title}.txt`,
+     combinedCaptions
+    );
+   }
+  }
+
+  let split = new MediaSplit({
+   input: linkOfVideo,
+   sections: [`[00:00] ${title}`],
+   output: folderPath,
+   format: "wav",
+   audioonly: true,
+  });
+
+  await split.parse();
+ } catch (e) {
+  console.log(e);
  }
-
- let split = new MediaSplit({
-  input: linkOfVideo,
-  sections: [`[00:00] ${title}`],
-  output: folderPath,
-  format: "wav",
-  audioonly: true,
- });
-
- await split.parse();
 };
 
 const path = "./videos.txt";
